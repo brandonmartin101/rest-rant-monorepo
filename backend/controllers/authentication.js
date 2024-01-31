@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../models');
 const bcrypt = require('bcrypt');
+const jwt = require('json-web-token');
 
 const { User } = db;
 
@@ -16,7 +17,26 @@ router.post('/', async (req, res) => {
 			message: 'Invalid email or password',
 		});
 	} else {
-		res.json({ user });
+		const result = await jwt.encode(process.env.JWT_SECRET, { id: user.userId });
+		res.json({ user: user, token: result.value });
+	}
+});
+
+router.get('/profile', async (req, res) => {
+	try {
+		const [method, token] = req.headers.authorization.split(' ');
+		if (method === 'Bearer') {
+			const result = await jwt.decode(process.env.JWT_SECRET, token);
+			const { id } = result.value;
+			let user = await User.findOne({
+				where: {
+					userId: id,
+				},
+			});
+			res.json(user);
+		}
+	} catch {
+		res.json(null);
 	}
 });
 
